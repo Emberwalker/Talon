@@ -1,0 +1,83 @@
+buildscript {
+    ext.junit_jupiter_version = "5.2.0"
+    ext.lombok_version = "1.18.0"
+    ext.apiguardian_version = "1.0.0"
+    ext.commons_io_version = "2.6"
+    ext.asm_version = "6.2"
+    ext.assertj_version = "3.10.0"
+    ext.slf4j_version = "1.7.25"
+    ext.logback_version = "1.2.3"
+}
+
+plugins {
+    id "com.github.johnrengelman.shadow" version "2.0.4"
+    id "java"
+    id "java-library"
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+group = "io.drakon"
+version = "0.0.1"
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+dependencies {
+    api "org.apiguardian:apiguardian-api:$apiguardian_version"
+    implementation "org.slf4j:slf4j-api:$slf4j_version"
+    implementation "commons-io:commons-io:$commons_io_version"
+    implementation "org.ow2.asm:asm:$asm_version"
+    implementation "org.projectlombok:lombok:$lombok_version"
+    testCompile "org.junit.jupiter:junit-jupiter-api:$junit_jupiter_version"
+    testCompile "org.assertj:assertj-core:$assertj_version"
+    testCompile "org.ow2.asm:asm-util:$asm_version"
+    testRuntime "org.junit.jupiter:junit-jupiter-engine:$junit_jupiter_version"
+    testRuntime "ch.qos.logback:logback-classic:$logback_version"
+}
+
+test {
+    useJUnitPlatform()
+}
+
+shadowJar {
+    classifier = ""
+    relocate "org.objectweb.asm", "io.drakon.talon.repack.asm"
+    relocate "org.apache.commons", "io.drakon.talon.repack.commons"
+
+    dependencies {
+        // Nothing at runtime requires Lombok, so exclude it to save space.
+        exclude(dependency("org.projectlombok:lombok:$lombok_version"))
+    }
+}
+
+// Replace Jar task with ShadowJar task
+tasks.jar.enabled = false
+tasks.assemble.dependsOn shadowJar
+
+javadoc {
+    include "io/drakon/talon/**/*"
+    exclude "**/internal/**", "**/repack/**"
+    options.links "https://docs.oracle.com/javase/8/docs/api/"
+    //options.addBooleanOption("html5", true)
+    options.stylesheetFile = new File(projectDir, "src/main/javadoc/stylesheet.css")
+}
+
+task sourceJar(type: Jar) {
+    classifier = "sources"
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = "javadoc"
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives shadowJar
+    archives sourceJar
+    archives javadocJar
+}
